@@ -12,6 +12,7 @@ import java.awt.Dimension;
 import javax.swing.BoxLayout;
 import javax.swing.JButton;
 import java.awt.event.ActionListener;
+import java.io.IOException;
 import java.awt.event.ActionEvent;
 import java.awt.FlowLayout;
 import javax.swing.JSplitPane;
@@ -135,14 +136,14 @@ public class ClientFrame {
 				int port = Integer.parseInt(tf_port.getText());
 				ftpUtil.setRemoteHost(host);
 				ftpUtil.setRemotePort(port);
+				ftpUtil.setRemotePath("/var/ftp/test");
 				ftpUtil.connect();
 				String user = tf_user.getText();
 				String pwd = tf_pwd.getText();
 				ftpUtil.setUser(user);
 				ftpUtil.setPW(pwd);
 				ftpUtil.login();
-			}
-			
+			}		
 		});
 		
 		
