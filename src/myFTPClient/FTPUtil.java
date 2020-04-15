@@ -171,13 +171,25 @@ public class FTPUtil {
             dataSocket.close();//关闭数据连接 
             response = readLine();
 
-            System.out.println("List Complete.");
+//            System.out.println("List Complete.");
         } catch (IOException ioex) {
             ioex.printStackTrace();
         } catch (Exception ex) {
             ex.printStackTrace();
         }
         return fileList;
+    }
+    
+    public String getListContent() throws IOException {
+    	ArrayList<String> list1 = list("");
+    	String result="";
+    	for(int i=0; i<list1.size();i++) {
+    		result += list1.get(i);
+    		result += "\n";
+    		
+    	}
+    	
+    	return result;
     }
     ///
     /// Close the FTP connection.
@@ -253,6 +265,10 @@ public class FTPUtil {
     //上传文件
     public synchronized boolean upload(String localFileName) throws IOException {
         dataSocket = createDataSocket();
+        
+        //测试路径
+        cwd("var/ftp/test");
+        
         int i = localFileName.lastIndexOf("/");
         if (i == -1) {
             i = localFileName.lastIndexOf("\\");
