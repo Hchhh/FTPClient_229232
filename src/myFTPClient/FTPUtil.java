@@ -195,18 +195,6 @@ public class FTPUtil {
         }
         return fileList;
     }
-
-    public String getListContent() throws IOException {
-    	ArrayList<String> list1 = list("");
-    	String result="";
-    	for(int i=0; i<list1.size();i++) {
-    		result += list1.get(i);
-    		result += "\n";
-    		
-    	}
-    	
-    	return result;
-    }
     
     /**
      * 关闭FTP连接
@@ -242,9 +230,9 @@ public class FTPUtil {
      */
     public void setBinaryMode(Boolean mode) throws IOException {
         if (mode) {
-            sendCommand("TYPE I ");
+            sendCommand("TYPE I");
         } else {
-            sendCommand("TYPE A ");
+            sendCommand("TYPE A");
         }
         response = readLine();
         if (!response.startsWith("200")) {
@@ -430,7 +418,7 @@ public class FTPUtil {
      */
     public synchronized void downloadContinue(String remoteFilePath, String localFileDir) throws IOException {
     	//创建数据缓冲区，用于下载
-    	byte[] buffer = new byte[4096];
+    	byte[] buffer = new byte[1024];
     	//获取远程文件名 (xxx.a)
         String remoteFileName = "";
     	int i = remoteFilePath.lastIndexOf("/");
@@ -467,22 +455,22 @@ public class FTPUtil {
         //如果本地有临时文件，即断点续传
     	if(hasTemp) {
         	Long localFileSize = localRAF.length(); //获取本地文件的大小
-        	long remoteFileSize = getFileSize("网络编程实用教程.pdf");
+        	long remoteFileSize = getFileSize(remoteFilePath);
         	if(localFileSize < remoteFileSize) {
-        		int isEnd = 0; //是否读取完文件
-        		int length = buffer.length; //每次传输所允许的最大缓冲区大小
+        		int length = 0; //每次读取成功的大小
         		int offset = localFileSize.intValue(); //设置传输偏移量，即本地文件大小
-                sendCommand("RETR " + remoteFilePath); //获取远端文件，socket输入流开启
+                setBinaryMode(true);
+        		sendCommand("REST " + offset); //从指定位置开始下载
                 response = readLine();
+                sendCommand("RETR " + remoteFilePath); //获取远端文件
+                response = readLine();
+                localRAF.seek(localFileSize); //将本地文件指针指向末尾
         		do {
-        			socketIn.skip(offset);
-        	        isEnd = socketIn.read(buffer);
-        	        System.out.println(buffer[0]);
-        	        if (isEnd != -1) {
-        	            localRAF.write(buffer);
-        	            System.out.println(buffer[0]);
+        	        length = socketIn.read(buffer); //每次读一个buffer
+        	        if (length != -1) {
+        	            localRAF.write(buffer, 0, length); //向本地文件写一个buffer
         	        }
-        	    } while (isEnd != -1); 	
+        	    } while (length != -1); 	
        		 	response = readLine();
        		 	localRAF.close();
         		//传输完成，重命名
@@ -505,17 +493,16 @@ public class FTPUtil {
         else {
         	//如果本地没有对应的临时文件, 正常传输
             localFile = new File(localFileDir + sep + localFileName); //创建本地临时文件
-            localRAF = new RandomAccessFile(localFileDir + sep + localFileName, "rwd");
-            int isEnd = 0; //是否读取完文件
-    		int length = buffer.length; //每次传输所允许的最大缓冲区大小
-            sendCommand("RETR " + remoteFilePath); //获取远端文件，socket输入流开启
+            localRAF = new RandomAccessFile(localFileDir + sep + localFileName, "rw");
+            int length = 0; //每次读取成功的大小
+    		sendCommand("RETR " + remoteFilePath); //获取远端文件，socket输入流开启
             response = readLine();
     		do {
-    	        isEnd = socketIn.read(buffer);
-    	        if (isEnd != -1) {
-    	            localRAF.write(buffer);
+    	        length = socketIn.read(buffer);
+    	        if (length != -1) {
+    	            localRAF.write(buffer, 0, length);
     	        }
-    	    } while (isEnd != -1); 	
+    	    } while (length != -1); 	
     		 response = readLine();
      		localRAF.close();
             //传输完成，重命名
@@ -543,10 +530,6 @@ public class FTPUtil {
      */
     public synchronized boolean upload(String localFileName) throws IOException {
         dataSocket = createDataSocket();
-        
-        //测试路径
-        cwd("var/ftp/test");
-        
         int i = localFileName.lastIndexOf("/");
         if (i == -1) {
             i = localFileName.lastIndexOf("\\");

@@ -54,19 +54,19 @@ public class ClientFrame {
 	/**
 	 * Launch the application.
 	 */
-//	public static void main(String[] args) {
-//
-//		EventQueue.invokeLater(new Runnable() {
-//			public void run() {
-//				try {
-//					ClientFrame window = new ClientFrame();
-//					window.frame.setVisible(true);
-//				} catch (Exception e) {
-//					e.printStackTrace();
-//				}
-//			}
-//		});
-//	}
+	public static void main(String[] args) {
+
+		EventQueue.invokeLater(new Runnable() {
+			public void run() {
+				try {
+					ClientFrame window = new ClientFrame("62.234.12.47","ubuntu","Ubuntu111!",21);
+					window.frame.setVisible(true);
+				} catch (Exception e) {
+					e.printStackTrace();
+				}
+			}
+		});
+	}
 
 	/**
 	 * Create the application.
@@ -80,7 +80,6 @@ public class ClientFrame {
 			ftpUtil.setPW(pwd);
 			ftpUtil.login();
 			initialize(host,user,pwd,port);
-			
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
@@ -189,7 +188,7 @@ public class ClientFrame {
 		frame.getContentPane().add(fileConsoleTxt);
 
 		//本地文件树
-		String filePath = "/Users/hjq/Documents";
+		String filePath = "F:\\shared";
 		JTree localFileTree = new JTree(getLocalFiles(filePath));
 		panel.add(new JScrollPane(localFileTree), BorderLayout.CENTER);
 		
