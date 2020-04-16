@@ -26,13 +26,15 @@ public class FTPUtil {
     File currentPath = rootPath;//当前路径
     private boolean logined;//判断是否登录服务器的标志
     private boolean debug;
+    
+    public String commuteInfo ="";
 
     public FTPUtil() {
         remoteHost = "localhost";
         remotePort = 21;
         remotePath = "/";
-        user = "user";
-        passWord = "123";
+        user = "-";
+        passWord = "-";
         logined = false;
         debug = false;
     }
@@ -84,10 +86,10 @@ public class FTPUtil {
                 outData = new BufferedWriter(new OutputStreamWriter(connectSocket.getOutputStream()));//输出信息(字符输出流)
             }
             response = readLine();
-          JOptionPane.showConfirmDialog(null,
-                    "服务器已经成功连接",
-                    "连接信息", JOptionPane.CLOSED_OPTION,
-                    JOptionPane.INFORMATION_MESSAGE);
+//          JOptionPane.showConfirmDialog(null,
+//                    "服务器已经成功连接",
+//                    "连接信息", JOptionPane.CLOSED_OPTION,
+//                    JOptionPane.INFORMATION_MESSAGE);
         } catch (Exception e) {           
              JOptionPane.showConfirmDialog(null,
                     " 连接失败",
@@ -263,11 +265,11 @@ public class FTPUtil {
         }
     }
     //上传文件
-    public synchronized boolean upload(String localFileName) throws IOException {
+    public synchronized boolean upload(String localFileName,String serverRoute) throws IOException {
         dataSocket = createDataSocket();
         
         //测试路径
-        cwd("var/ftp/test");
+        cwd(serverRoute);
         
         int i = localFileName.lastIndexOf("/");
         if (i == -1) {
@@ -414,14 +416,17 @@ public class FTPUtil {
         if (debug) {
             System.out.println("< " + line);
         }
+        commuteInfo += line + "\n";
         return line;
     }
+    
 //用于发送命令
     private void sendCommand(String line) {
         if (connectSocket == null) {
             System.out.println("FTP尚未连接");         //未建立通信链接，抛出异常警告
         }
         try {
+        	commuteInfo += line + "\n";
             outData.write(line + "\r\n");               //发送命令
             outData.flush();                            //刷新输出流
             if (debug) {
