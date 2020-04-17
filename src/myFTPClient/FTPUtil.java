@@ -6,10 +6,6 @@ import java.io.*;
 import java.util.*;
 import javax.swing.JOptionPane;
 
-/**
- *
- * @author Administrator
- */
 public class FTPUtil {
 
     private Socket connectSocket;//控制连接，用于传送和响应命令
@@ -386,16 +382,16 @@ public class FTPUtil {
     //建立数据连接
     private Socket createDataSocket() throws IOException {
 
-        sendCommand("PASV ");               //采用Pasv模式（被动模式），由服务器返回数据传输的临时端口号，使用该端口进行数据传输
+        sendCommand("PASV ");              
         response = readLine();
         if (!response.startsWith("227")) {      //FTP命令传输过程发生异常
             System.out.println(response);
         }
         String clientIp = "";
         int port = -1;
-        int opening = response.indexOf('(');               //采用Pasv模式服务器返回的信息如“227 Entering Passive Mode (127,0,0,1,64,2)”
-        int closing = response.indexOf(')', opening + 1);  //取"()"之间的内容：127,0,0,1,64,2 ，前4个数字为本机IP地址，转换成127.0.0.1格式
-        if (closing > 0) {                                 //端口号由后2个数字计算得出：64*256+2=16386
+        int opening = response.indexOf('(');              
+        int closing = response.indexOf(')', opening + 1);  
+        if (closing > 0) {                                 
             String dataLink = response.substring(opening + 1, closing);
 
             StringTokenizer arg = new StringTokenizer(dataLink, ",", false);
