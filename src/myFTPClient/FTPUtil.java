@@ -6,10 +6,6 @@ import java.io.*;
 import java.util.*;
 import javax.swing.JOptionPane;
 
-/**
- *
- * @author Administrator
- */
 public class FTPUtil {
 
     private Socket connectSocket;//控制连接，用于传送和响应命令
@@ -26,6 +22,8 @@ public class FTPUtil {
     File currentPath = rootPath;//当前路径
     private boolean logined;//判断是否登录服务器的标志
     private boolean debug;
+    
+    public String commuteInfo ="";
     private RandomAccessFile localRAF; //本地文件
     private RandomAccessFile remoteRAF; //远端文件
     
@@ -34,8 +32,8 @@ public class FTPUtil {
         remoteHost = "localhost";
         remotePort = 21;
         remotePath = "/";
-        user = "user";
-        passWord = "123";
+        user = "-";
+        passWord = "-";
         logined = false;
         debug = false;
     }
@@ -91,10 +89,10 @@ public class FTPUtil {
                 outData = new BufferedWriter(new OutputStreamWriter(connectSocket.getOutputStream()));//输出信息(字符输出流)
             }
             response = readLine();
-          JOptionPane.showConfirmDialog(null,
-                    "服务器已经成功连接",
-                    "连接信息", JOptionPane.CLOSED_OPTION,
-                    JOptionPane.INFORMATION_MESSAGE);
+//          JOptionPane.showConfirmDialog(null,
+//                    "服务器已经成功连接",
+//                    "连接信息", JOptionPane.CLOSED_OPTION,
+//                    JOptionPane.INFORMATION_MESSAGE);
         } catch (Exception e) {           
              JOptionPane.showConfirmDialog(null,
                     " 连接失败",
@@ -281,6 +279,8 @@ public class FTPUtil {
             return false;
         }
     }
+    //上传文件
+//    public synchronized boolean upload(String localFileName,String serverRoute) throws IOException {
     
     /**
      * 获取远程服务器某个文件的大小
@@ -528,45 +528,49 @@ public class FTPUtil {
      * @return
      * @throws IOException
      */
-    public synchronized boolean upload(String localFileName) throws IOException {
-        dataSocket = createDataSocket();
-        int i = localFileName.lastIndexOf("/");
-        if (i == -1) {
-            i = localFileName.lastIndexOf("\\");
-        }
-        String element_1 = "";
-        if (i != -1) {
-            element_1 = localFileName.substring(i + 1);
-        }
-        sendCommand("STOR /var/ftp/test/" + element_1);
-        response = readLine();
-        if (!response.startsWith("1")) {
-            System.out.println(response);
-        }
-        FileInputStream dataIn = new FileInputStream(localFileName);
-        BufferedOutputStream dataOut = new BufferedOutputStream(dataSocket.getOutputStream());
-        byte[] buffer = new byte[4096];
-        int bytesRead = 0;
-        do {
-            bytesRead = dataIn.read(buffer);
-            if (bytesRead != -1) {
-                dataOut.write(buffer, 0, bytesRead);
-            }
-        } while (bytesRead != -1);
-        dataOut.flush();
-        dataOut.close();
-        dataIn.close();
-        dataSocket.close();//关闭此数据连接
-        response = readLine();
-
-        if (response.startsWith("226")) {
-            JOptionPane.showConfirmDialog(null,
-                    " 文件上传成功！",
-                    " 上传信息", JOptionPane.CLOSED_OPTION,
-                    JOptionPane.INFORMATION_MESSAGE);            
-        }
-        return (response.startsWith("226"));
-    }
+//    public synchronized boolean upload(String localFileName,String serverRoute) throws IOException {
+//        dataSocket = createDataSocket();
+//        
+//        //测试路径
+//        cwd(serverRoute);
+//        
+//        int i = localFileName.lastIndexOf("/");
+//        if (i == -1) {
+//            i = localFileName.lastIndexOf("\\");
+//        }
+//        String element_1 = "";
+//        if (i != -1) {
+//            element_1 = localFileName.substring(i + 1);
+//        }
+//        sendCommand("STOR /var/ftp/test/" + element_1);
+//        response = readLine();
+//        if (!response.startsWith("1")) {
+//            System.out.println(response);
+//        }
+//        FileInputStream dataIn = new FileInputStream(localFileName);
+//        BufferedOutputStream dataOut = new BufferedOutputStream(dataSocket.getOutputStream());
+//        byte[] buffer = new byte[4096];
+//        int bytesRead = 0;
+//        do {
+//            bytesRead = dataIn.read(buffer);
+//            if (bytesRead != -1) {
+//                dataOut.write(buffer, 0, bytesRead);
+//            }
+//        } while (bytesRead != -1);
+//        dataOut.flush();
+//        dataOut.close();
+//        dataIn.close();
+//        dataSocket.close();//关闭此数据连接
+//        response = readLine();
+//
+//        if (response.startsWith("226")) {
+//            JOptionPane.showConfirmDialog(null,
+//                    " 文件上传成功！",
+//                    " 上传信息", JOptionPane.CLOSED_OPTION,
+//                    JOptionPane.INFORMATION_MESSAGE);            
+//        }
+//        return (response.startsWith("226"));
+//    }
     
     /**
      * 下载文件，无断点续传
@@ -662,16 +666,16 @@ public class FTPUtil {
      */
     private Socket createDataSocket() throws IOException {
 
-        sendCommand("PASV ");               //采用Pasv模式（被动模式），由服务器返回数据传输的临时端口号，使用该端口进行数据传输
+        sendCommand("PASV ");              
         response = readLine();
         if (!response.startsWith("227")) {      //FTP命令传输过程发生异常
             System.out.println(response);
         }
         String clientIp = "";
         int port = -1;
-        int opening = response.indexOf('(');               //采用Pasv模式服务器返回的信息如“227 Entering Passive Mode (127,0,0,1,64,2)”
-        int closing = response.indexOf(')', opening + 1);  //取"()"之间的内容：127,0,0,1,64,2 ，前4个数字为本机IP地址，转换成127.0.0.1格式
-        if (closing > 0) {                                 //端口号由后2个数字计算得出：64*256+2=16386
+        int opening = response.indexOf('(');              
+        int closing = response.indexOf(')', opening + 1);  
+        if (closing > 0) {                                 
             String dataLink = response.substring(opening + 1, closing);
 
             StringTokenizer arg = new StringTokenizer(dataLink, ",", false);
@@ -697,9 +701,12 @@ public class FTPUtil {
         if (debug) {
             System.out.println("< " + line);
         }
+        commuteInfo += line + "\n";
         System.out.println(line);
         return line;
     }
+    
+//用于发送命令
 
     /**
      * 向控制连接socket的输入流域发送FTP命令行
@@ -710,6 +717,7 @@ public class FTPUtil {
             System.out.println("FTP尚未连接");         //未建立通信链接，抛出异常警告
         }
         try {
+        	commuteInfo += line + "\n";
             outData.write(line + "\r\n");               //发送命令
             outData.flush();                            //刷新输出流
             System.out.println(line);
