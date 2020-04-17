@@ -722,4 +722,100 @@ public class FTPUtil {
             return;
         }
     }
+
+    /**
+     * 维持FTP连接——每隔固定时间发送NOOP
+     * @param interval
+     */
+    public void keepAlive(long interval){
+    	Thread test = new Thread(() ->  {
+    		boolean timeOut = false;
+    		while(!timeOut) {
+    			try {
+    	    		sendCommand("NOOP");
+    				response = readLine();	
+    				if (!response.startsWith("200")) { //200-NOOP OK
+    					timeOut = true;
+    					JOptionPane.showConfirmDialog(null,
+    		                    " 连接已断开！",
+    		                    " 连接信息", JOptionPane.CLOSED_OPTION,
+    		                    JOptionPane.INFORMATION_MESSAGE);   
+    					break;
+    				} 
+    				Thread.sleep(interval);		
+    			} catch (IOException | InterruptedException e) {
+    				// TODO Auto-generated catch block
+    				e.printStackTrace();
+    			}
+    		}
+    	}
+    );
+    	test.start();
+    }
+
+    /**
+     * 从远端文件下载指定部分(start-end}，用于多线程下载
+     * @param start 下载的起始位置（字节）
+     * @param end 下载的结束位置（字节）
+     * @param remoteFilePath 远端文件路径（相对于当前工作目录）
+     * @param localFileDir 本地保存目录（不包含文件名）
+     * @param part 下载的文件部分的序号
+     * @return 下载的字节数
+     * @throws IOException
+     */
+    public synchronized long downloadPart(long start, long end, String remoteFilePath, String localFileDir, int part) throws IOException{
+    	if(start < 0 || start >= end)
+    		return 0;
+    	long downloadSize = end - start; //需要下载的数据长度
+    	byte[] buffer = new byte[1];
+    	//获取远程文件名 (xxx.a)
+        String remoteFileName = "";
+    	int i = remoteFilePath.lastIndexOf("/");
+        if (i == -1) {
+            i = remoteFilePath.lastIndexOf("\\");
+            if(i == -1)
+            	remoteFileName = remoteFilePath;
+        }
+        if (i != -1) {
+        	remoteFileName = remoteFilePath.substring(i + 1);
+        }  
+        //获取本地路径分隔符
+        String sep = "/";
+        if (localFileDir.indexOf(sep) == -1)
+        	sep = "\\";
+        //建立本地文件对象
+        String localFileName = remoteFileName.replace(".", "") + part + ".temp";
+        localRAF = new RandomAccessFile(localFileDir + sep + localFileName, "rw");
+        
+       //创建数据socket及其IO流
+    	dataSocket = createDataSocket();
+    	BufferedInputStream socketIn = new BufferedInputStream(dataSocket.getInputStream());
+    	BufferedOutputStream socketOut = new BufferedOutputStream(dataSocket.getOutputStream()); 	
+    	
+    	//发送下载指令
+    	setBinaryMode(true);
+    	if(start > 0) {
+    		sendCommand("REST " + start);
+    		response = readLine();
+    	}
+    	sendCommand("RETR " + remoteFilePath);
+    	response = readLine();
+    	int length = 0;
+    	long bytesWritten = 0;
+    	do {
+    		length = socketIn.read(buffer);
+    		if(length != -1) {
+    			localRAF.write(buffer, 0, length);
+    			bytesWritten += length;
+    			if(bytesWritten == downloadSize) {
+    				sendCommand("ABORT");
+    				return bytesWritten;
+    			}
+    				
+    		}
+    	} while (length != -1);
+    	
+    	return bytesWritten;
+    }
+
 }
