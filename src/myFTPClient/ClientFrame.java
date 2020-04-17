@@ -351,13 +351,13 @@ public class ClientFrame {
 				if (JOptionPane.showConfirmDialog(null, "是否上传:\n" + temp_localPath + "\n至服务器路径：\n" + temp_serverPath,
 						"上传文件", JOptionPane.YES_NO_OPTION) == 0) {
 //					System.out.println("Yes");
-					try {
-						ftpUtil.upload(temp_localPath, temp_serverPath);
-						consoleTxt.setText(ftpUtil.commuteInfo);
-					} catch (IOException e) {
-						// TODO Auto-generated catch block
-						e.printStackTrace();
-					}
+//					try {
+////						ftpUtil.upload(temp_localPath, temp_serverPath);
+//						consoleTxt.setText(ftpUtil.commuteInfo);
+//					} catch (IOException e) {
+//						// TODO Auto-generated catch block
+//						e.printStackTrace();
+//					}
 
 					((DefaultMutableTreeNode) tp.getLastPathComponent()).add(newNode);
 					serverFileTree.updateUI();
