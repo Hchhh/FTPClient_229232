@@ -52,7 +52,7 @@ public class MultiDownload {
 		ftp.connect();
 		ftp.setUser("ubuntu");
 		ftp.setPW("Ubuntu111!");
-		ftp.login();
+		ftp.threadLogin();
 		try {
 			ftp.cwd("/var/ftp/test");
 			this.fileSize = ftp.getFileSize(remotePath);
@@ -376,17 +376,13 @@ class DownloadTask extends Thread{
 		ftp.connect();
 		ftp.setUser("ubuntu");
 		ftp.setPW("Ubuntu111!");
-		ftp.login();
+		ftp.threadLogin();
 		try {
 			ftp.cwd("/var/ftp/test");
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
-	}
-	
-	public long getProgress() {
-		return this.ftp.bytesWritten;
 	}
 	
 	@Override
