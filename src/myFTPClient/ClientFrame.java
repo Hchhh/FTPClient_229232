@@ -5,6 +5,7 @@ import java.awt.EventQueue;
 import javax.swing.JFrame;
 import javax.swing.JPanel;
 import javax.swing.JPasswordField;
+import javax.swing.JPopupMenu;
 import javax.swing.JScrollPane;
 import javax.swing.JToolBar;
 import java.awt.BorderLayout;
@@ -18,6 +19,8 @@ import javax.swing.JButton;
 import javax.swing.JFileChooser;
 
 import java.awt.event.ActionListener;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
@@ -49,9 +52,11 @@ import java.awt.dnd.DropTargetDropEvent;
 import java.awt.dnd.DropTargetListener;
 import java.awt.GridLayout;
 import javax.swing.JLabel;
+import javax.swing.JMenuItem;
 import javax.swing.JOptionPane;
 import javax.swing.JSpinner;
 import javax.swing.JTree;
+import javax.swing.SwingUtilities;
 import javax.swing.border.Border;
 import javax.swing.tree.DefaultMutableTreeNode;
 import javax.swing.tree.TreeNode;
@@ -73,7 +78,8 @@ public class ClientFrame {
 	JTree serverFileTree;
 
 	// 预存本地文件路径，windows修改第一项路径改为系统根目录
-	String localSystemPath = "/Users/hjq/Documents";
+//	String localSystemPath = "/Users/hjq/Documents";
+	String localSystemPath;
 	String serverFilePath = "/var/ftp";
 
 	// 传输文件时获取到的本地文件路径以及服务器文件路径
@@ -108,7 +114,7 @@ public class ClientFrame {
 	/**
 	 * Create the application.
 	 */
-	public ClientFrame(String host, String user, String pwd, int port) {
+	public ClientFrame(String host, String user, String pwd, int port, String localWorkPath) {
 		try {
 			ftpUtil.setRemoteHost(host);
 			ftpUtil.setRemotePort(port);
@@ -116,8 +122,11 @@ public class ClientFrame {
 			ftpUtil.setUser(user);
 			ftpUtil.setPW(pwd);
 			ftpUtil.login();
+			this.localSystemPath = localWorkPath;
+//			ftpUtil.mkdir("/var/ftp/test/test1");
 //			ftpUtil.upload("/Users/hjq/Documents/CMMTokenAnalysis/cmm.txt","/var/ftp/test2");
 //			ftpUtil.download("/var/ftp/test/cmm.txt", "/Users/hjq/Documents/cmm.txt");
+//			ftpUtil.deleteFile("/var/ftp/test/test.txt");
 			initialize(host, user, pwd, port);
 
 		} catch (IOException e) {
@@ -198,7 +207,7 @@ public class ClientFrame {
 		consoleTxt = new JTextArea();
 		consoleTxt.setEditable(false);
 //		consoleTxt.setText("Console\n\n\n\n\n");
-		consoleTxt.setMaximumSize(new Dimension(1280, 300));
+		consoleTxt.setMaximumSize(new Dimension(1280, 400));
 		consoleTxt.setText(ftpUtil.commuteInfo);
 		frame.getContentPane().add(new JScrollPane(consoleTxt));
 
@@ -239,6 +248,34 @@ public class ClientFrame {
 		// 服务器文件树
 		serverFileTree = new JTree(getServerFiles(serverFilePath));
 		scrollPane.setViewportView(serverFileTree);
+
+		// 添加右键响应事件实现删除文件以及重命名
+		serverFileTree.addMouseListener(new MouseAdapter() {
+			DefaultMutableTreeNode rightNode;
+			String temp_fileName;
+
+			@Override
+			public void mouseClicked(MouseEvent e) {
+				if (e.getButton() == MouseEvent.BUTTON3) {
+					rightNode = (DefaultMutableTreeNode) serverFileTree.getPathForLocation(e.getX(), e.getY())
+							.getLastPathComponent();
+					temp_fileName = (String) rightNode.getUserObject();
+					if (temp_fileName != null) {
+						// 选择的是目录
+						if (serverFileisDirectory(rightNode, temp_fileName)) {
+							JPopupMenu dicMenu = directoryDeleteandRename(rightNode, temp_fileName);
+							dicMenu.show(e.getComponent(),e.getX(),e.getY());
+						}
+						// 选择的是文件
+						else {
+							JPopupMenu fileMenu = fileDeleteandRename(rightNode, temp_fileName);
+							fileMenu.show(e.getComponent(), e.getX(), e.getY());
+						}
+					}
+				}
+			}
+
+		});
 
 		// 树节点拖拽实现文件上传下载
 		localFileTree.setDragEnabled(true);
@@ -340,7 +377,7 @@ public class ClientFrame {
 			int serverchildCount = serverPathNode.getChildCount();
 			String serverPath = (String) ((DefaultMutableTreeNode) serverPathNode).getUserObject();
 			temp_serverPath = serverPath;
-			
+
 			System.out.println(serverPath + "   " + serverchildCount);
 
 			// 服务器路径选择正确
@@ -351,37 +388,27 @@ public class ClientFrame {
 				if (JOptionPane.showConfirmDialog(null, "是否上传:\n" + temp_localPath + "\n至服务器路径：\n" + temp_serverPath,
 						"上传文件", JOptionPane.YES_NO_OPTION) == 0) {
 //					System.out.println("Yes");
-//					try {
-////						ftpUtil.upload(temp_localPath, temp_serverPath);
-//						consoleTxt.setText(ftpUtil.commuteInfo);
-//					} catch (IOException e) {
-//						// TODO Auto-generated catch block
-//						e.printStackTrace();
-//					}
+					try {
+						ftpUtil.uploadContinue(temp_localPath, temp_serverPath);
+						consoleTxt.setText(ftpUtil.commuteInfo);
+					} catch (IOException e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					}
 
 					((DefaultMutableTreeNode) tp.getLastPathComponent()).add(newNode);
 					serverFileTree.updateUI();
 
-					Date date = new Date();
-					String preText = fileConsoleTxt.getText();
-					fileConsoleTxt.setText(preText + "文件传输成功！\n操作时间：" + date.toString() + "\n本地文件路径：" + temp_localPath
-							+ "\n服务器文件路径：" + temp_serverPath + "\n\n");
-					fileConsoleTxt.updateUI();
+					fileLog("文件传输成功！","本地文件路径：" + temp_localPath + "\n服务器文件路径：" + temp_serverPath);
 				} else {
 					// 取消上传
-					Date date = new Date();
-					String preText = fileConsoleTxt.getText();
-					fileConsoleTxt.setText(preText + "文件传输失败！\n操作时间：" + date.toString() + "\n失败原因：用户取消传输。\n\n");
-					fileConsoleTxt.updateUI();
+					fileLog("文件传输失败！","失败原因：用户取消传输。");
 				}
 
 			} else {
 				JOptionPane.showConfirmDialog(null, " 请选择传输至服务器文件夹中！ ", " 上传文件", JOptionPane.CLOSED_OPTION,
 						JOptionPane.WARNING_MESSAGE);
-				Date date = new Date();
-				String preText = fileConsoleTxt.getText();
-				fileConsoleTxt.setText(preText + "文件传输失败！\n操作时间：" + date.toString() + "\n失败原因：选择了错误的服务器目的文件路径。\n\n");
-				fileConsoleTxt.updateUI();
+				fileLog("文件传输失败！","失败原因：选择了错误的服务器目的文件路径。");
 
 			}
 		}
@@ -411,31 +438,27 @@ public class ClientFrame {
 //			System.out.println(serverFileTree.getPathForLocation(dtde.getLocation().x,dtde.getLocation().y).getLastPathComponent());
 			DefaultMutableTreeNode localPathNode = (DefaultMutableTreeNode) localFileTree
 					.getPathForLocation(dtde.getLocation().x, dtde.getLocation().y).getLastPathComponent();
-			//选中文件名
+			// 选中文件名
 			String localName = (String) ((DefaultMutableTreeNode) localPathNode).getUserObject();
 			System.out.println(localName);
-			//获得本地文件全路径
+			// 获得本地文件全路径
 			String temp_path = localSystemPath;
 			TreeNode[] localparents = localPathNode.getPath();
-			for(int i=1; i< localparents.length;i++) {
+			for (int i = 1; i < localparents.length; i++) {
 				temp_path += "/" + ((DefaultMutableTreeNode) localparents[i]).getUserObject();
 			}
 			temp_localPath = temp_path;
 			System.out.println(temp_localPath);
-			if(!new File(temp_path).isDirectory()) {
+			if (!new File(temp_path).isDirectory()) {
 				JOptionPane.showConfirmDialog(null, " 请选择传输至本地文件夹中！ ", " 下载文件", JOptionPane.CLOSED_OPTION,
 						JOptionPane.WARNING_MESSAGE);
-				Date date = new Date();
-				String preText = fileConsoleTxt.getText();
-				fileConsoleTxt.setText(preText + "文件下载失败！\n操作时间：" + date.toString() + "\n失败原因：选择了错误的本地目的文件路径。\n\n");
-				fileConsoleTxt.updateUI();
-			}
-			else {
+				fileLog("文件下载失败！","失败原因：选择了错误的本地目的文件路径");
+			} else {
 				if (JOptionPane.showConfirmDialog(null, "是否下载:\n" + temp_serverPath + "\n至本地路径：\n" + temp_localPath,
 						"下载文件", JOptionPane.YES_NO_OPTION) == 0) {
-					temp_localPath += "/" + temp_fileName;
+//					temp_localPath += "/" + temp_fileName;
 					try {
-						ftpUtil.download(temp_serverPath, temp_localPath);
+						ftpUtil.downloadContinue(temp_serverPath, temp_localPath);
 						consoleTxt.setText(ftpUtil.commuteInfo);
 					} catch (IOException e) {
 						// TODO Auto-generated catch block
@@ -444,39 +467,37 @@ public class ClientFrame {
 					((DefaultMutableTreeNode) tp.getLastPathComponent()).add(newNode);
 					localFileTree.updateUI();
 
-					Date date = new Date();
-					String preText = fileConsoleTxt.getText();
-					fileConsoleTxt.setText(preText + "文件下载成功！\n操作时间：" + date.toString() + "\n本地文件路径：" + temp_localPath
-							+ "\n服务器文件路径：" + temp_serverPath + "\n\n");
-					fileConsoleTxt.updateUI();
-				}
-				else {
+					fileLog("文件下载成功！","本地文件路径：" + temp_localPath + "\n服务器文件路径：" + temp_serverPath );
+				} else {
 					// 取消下载
-					Date date = new Date();
-					String preText = fileConsoleTxt.getText();
-					fileConsoleTxt.setText(preText + "文件下载失败！\n操作时间：" + date.toString() + "\n失败原因：用户取消下载。\n\n");
-					fileConsoleTxt.updateUI();
-				
+					fileLog("文件下载失败！","失败原因：用户取消下载。");
 				}
 			}
 		}
 
 	}
 
-	// 获取本地文件树
+	// 获取服务器文件树
 	private DefaultMutableTreeNode getServerFiles(String mask) throws IOException {
 //			DefaultMutableTreeNode root = new DefaultMutableTreeNode(new FileTreeNode(mask));
 		DefaultMutableTreeNode root = new DefaultMutableTreeNode(mask);
 		ArrayList<String> fileList = ftpUtil.list(mask);
 		consoleTxt.setText(ftpUtil.commuteInfo);
-		String fileName;
+		String fileName="";
 		int fileSize;
 		char isD;
 		for (int i = 0; i < fileList.size(); i++) {
 
 			String[] eachInfo = fileList.get(i).split("\\s+");
-
-			fileName = eachInfo[8];
+//			String test = "-rw-------    1 500      500         58200 Apr 17 16:17 ";
+//			String test2="-rw-------    1 500      500      12717913 Apr 16 18:06 ";
+//			System.out.println(test.length() + "   " +test2.length());
+//			
+//			
+//			
+//			for(int n=8; n<eachInfo.length;n++)
+//				fileName += eachInfo[n];
+			fileName = fileList.get(i).substring(56, fileList.get(i).length());
 			fileSize = Integer.parseInt(eachInfo[3]);
 			isD = eachInfo[0].charAt(0);
 //				root = new DefaultMutableTreeNode(tf_host.getText());
@@ -494,11 +515,12 @@ public class ClientFrame {
 				}
 			}
 //				System.out.println(i + ":   "+ fileList.get(i)+ "   ** "+ eachInfo[0].charAt(0) + "  size: "+ eachInfo[3]+ "   name:  "+ eachInfo[8]);
+			fileName ="";
 		}
 		return root;
 	}
 
-	// 获取服务器文件树
+	// 获取本地文件树
 	private DefaultMutableTreeNode getLocalFiles(String path) {
 
 //			DefaultMutableTreeNode root = new DefaultMutableTreeNode(new FileTreeNode(new File(path).getName()).getRoute());
@@ -532,6 +554,168 @@ public class ClientFrame {
 		return root;
 	}
 
+	//服务器文件夹新建 删除 操作
+	private JPopupMenu directoryDeleteandRename(DefaultMutableTreeNode node, String fileName) {
+		JPopupMenu menu = new JPopupMenu();
+		JMenuItem newItem = new JMenuItem("新建文件夹");
+		JMenuItem deleteItem = new JMenuItem("删除文件夹");
+		menu.add(deleteItem);
+		menu.add(newItem);
+		
+		newItem.addActionListener(new ActionListener() {
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				// TODO Auto-generated method stub
+				String fullPath = fileName;
+				
+				String newFolderName=JOptionPane.showInputDialog("新建文件夹：");
+				
+				if(JOptionPane.showConfirmDialog(null,
+							"是否在服务器文件夹：" + fullPath + " 下\n新建文件夹：" +newFolderName, "新建文件夹",
+							JOptionPane.YES_NO_OPTION) == 0) {
+					fullPath += "/"+newFolderName;
+					try {
+						//新建成功
+						if(ftpUtil.mkdir(fullPath)) {
+							node.add(new DefaultMutableTreeNode(fullPath));
+							serverFileTree.updateUI();
+							fileLog("新建文件夹成功","新建文件夹路径："+fullPath);
+						}
+					} catch (IOException e1) {
+						// TODO Auto-generated catch block
+						e1.printStackTrace();
+					}
+				}
+			}
+			
+		});
+		
+		deleteItem.addActionListener(new ActionListener() {
+
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				// TODO Auto-generated method stub
+				String fullPath = fileName;
+				if(fullPath.equals("/var/ftp")) {
+					JOptionPane.showConfirmDialog(null, " 不能对服务器根目录进行删除操作！ ", " 删除文件夹", JOptionPane.CLOSED_OPTION,
+							JOptionPane.WARNING_MESSAGE);
+				}else {
+					if(JOptionPane.showConfirmDialog(null,
+							"是否在服务器删除文件夹：" + fullPath + "\n（此操作不可逆！）" , "删除文件夹",
+							JOptionPane.YES_NO_OPTION) == 0) {
+						try {
+							if(ftpUtil.rmdir(fullPath)) {
+								((DefaultMutableTreeNode) node.getParent()).remove(node);
+								serverFileTree.updateUI();
+								fileLog("文件夹删除成功！","服务器原文件夹路径："+ fullPath);
+							}
+							// 删除失败
+							else {
+								fileLog("文件夹删除失败！","服务器原文件夹路径：" +fullPath +  "\n请在上方控制台查看失败信息！");
+								
+							}
+						} catch (IOException e1) {
+							// TODO Auto-generated catch block
+							e1.printStackTrace();
+						}
+						
+					}else {
+						fileLog("文件夹删除失败","失败原因：用户取消了删除操作。");
+					}
+				}
+			}
+			
+		});
+		
+		return menu;
+	}
+	
+	// 文件右键弹出窗体
+	private JPopupMenu fileDeleteandRename(DefaultMutableTreeNode node, String fileName) {
+		JPopupMenu menu = new JPopupMenu();
+		JMenuItem deleteItem = new JMenuItem("删除");
+		JMenuItem renameItem = new JMenuItem("重命名");
+		menu.add(deleteItem);
+		menu.add(renameItem);
+
+		// 删除文件操作
+		deleteItem.addActionListener(new ActionListener() {
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				// TODO Auto-generated method stub
+				String fullPath = (String) ((DefaultMutableTreeNode) node.getParent()).getUserObject() + "/" + fileName;
+//				System.out.println(fullPath);
+				try {
+					if (JOptionPane.showConfirmDialog(null,
+							"是否在服务器删除文件:\n" + fullPath + "\n（此操作不可逆！）" , "删除文件",
+							JOptionPane.YES_NO_OPTION) == 0) {
+						// 删除成功:删除树节点
+						if (ftpUtil.deleteFile(fullPath) == true) {
+							((DefaultMutableTreeNode) node.getParent()).remove(node);
+							serverFileTree.updateUI();
+							fileLog("文件删除成功！","服务器原文件路径：" +fullPath );
+						}
+						// 删除失败
+						else {
+							fileLog("文件删除失败！","服务器原文件路径：" +fullPath +  "\n请在上方控制台查看失败信息！");
+							
+						}
+					}
+					else {
+						fileLog("文件删除失败","失败原因：用户取消了删除操作。");
+					}
+				} catch (IOException e1) {
+					// TODO Auto-generated catch block
+					e1.printStackTrace();
+				}
+			}
+		});
+		// 重命名操作
+		renameItem.addActionListener(new ActionListener() {
+
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				// TODO Auto-generated method stub
+				String fullPath = (String) ((DefaultMutableTreeNode) node.getParent()).getUserObject() + "/" + fileName;
+//				System.out.println(fullPath);
+//				try {
+//					if (JOptionPane.showConfirmDialog(null,
+//							"是否重命名:\n" + fileName , "重命名文件",
+//							JOptionPane.YES_NO_OPTION) == 0) {
+//						// 重命名成功:重命名树节点
+//						if (ftpUtil.deleteFile(fullPath) == true) {
+//							((DefaultMutableTreeNode) node.getParent()).remove(node);
+//							serverFileTree.updateUI();
+//							Date date = new Date();
+//							String preText = fileConsoleTxt.getText();
+//							fileConsoleTxt.setText(preText + "文件重命名成功！\n操作时间：" + date.toString() + "\n服务器原文件名：" +fullPath + "\n新文件名：" +"!!!!!!!!! " + "\n\n");
+//							fileConsoleTxt.updateUI();
+//						}
+//						// 删除失败
+//						else {
+//							Date date = new Date();
+//							String preText = fileConsoleTxt.getText();
+//							fileConsoleTxt.setText(preText + "文件删除失败！\n操作时间：" + date.toString() + "\n服务器原文件路径：" +fullPath +  "\n请在上方控制台查看失败信息！" +"\n\n");
+//							fileConsoleTxt.updateUI();
+//						}
+//					}
+//					else {
+//						Date date = new Date();
+//						String preText = fileConsoleTxt.getText();
+//						fileConsoleTxt.setText(preText + "文件删除失败！\n操作时间：" + date.toString() + "\n失败原因：用户取消了删除操作。\n\n");
+//						fileConsoleTxt.updateUI();
+//					}
+//				} catch (IOException e1) {
+//					// TODO Auto-generated catch block
+//					e1.printStackTrace();
+//				}
+			}
+
+		});
+
+		return menu;
+	}
+
 	// 判断服务器文件是否为文件夹
 	private boolean serverFileisDirectory(DefaultMutableTreeNode serverPathNode, String serverPath) {
 
@@ -543,5 +727,14 @@ public class ClientFrame {
 			return false;
 		}
 
+	}
+	
+	//文件控制台写入操作
+	private void fileLog(String title,String content) {
+		Date date = new Date();
+		String preText = fileConsoleTxt.getText();
+		fileConsoleTxt.setText(preText + title + "\n操作时间："+ date.toString() +"\n" + content + "\n\n");
+		consoleTxt.updateUI();
+		fileConsoleTxt.updateUI();
 	}
 }
