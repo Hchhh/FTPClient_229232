@@ -73,7 +73,7 @@ public class ClientFrame {
 	JTree serverFileTree;
 
 	// 预存本地文件路径，windows修改第一项路径改为系统根目录
-	String localSystemPath = "/Users/hjq/Documents";
+	String localSystemPath = "F:\\shared";
 	String serverFilePath = "/var/ftp";
 
 	// 传输文件时获取到的本地文件路径以及服务器文件路径
@@ -84,7 +84,6 @@ public class ClientFrame {
 	// 控制台文本框
 	JTextArea consoleTxt;
 	JTextArea fileConsoleTxt;
-
 	boolean upload_OK = true;
 	boolean download_OK = true;
 
@@ -199,7 +198,7 @@ public class ClientFrame {
 		consoleTxt.setEditable(false);
 //		consoleTxt.setText("Console\n\n\n\n\n");
 		consoleTxt.setMaximumSize(new Dimension(1280, 300));
-		consoleTxt.setText(ftpUtil.commuteInfo);
+		//consoleTxt.setText(ftpUtil.commuteInfo);
 		frame.getContentPane().add(new JScrollPane(consoleTxt));
 
 		JLabel lblNewLabel = new JLabel("文件传输");
@@ -221,15 +220,12 @@ public class ClientFrame {
 		filePane.add(serverPane);
 
 		serverPane.add(scrollPane, BorderLayout.CENTER);
-
-//		JTree serverFileTree = new JTree(getServerFiles(""));
-
 		// 文件传输控制台文本框
-		fileConsoleTxt = new JTextArea();
-		fileConsoleTxt.setEditable(false);
-//		fileConsoleTxt.setText("File Console\n\n\n\n\n");
-		fileConsoleTxt.setMaximumSize(new Dimension(1280, 200));
-		frame.getContentPane().add(new JScrollPane(fileConsoleTxt));
+				fileConsoleTxt = new JTextArea();
+				fileConsoleTxt.setEditable(false);
+//				fileConsoleTxt.setText("File Console\n\n\n\n\n");
+				fileConsoleTxt.setMaximumSize(new Dimension(1280, 200));
+				frame.getContentPane().add(new JScrollPane(fileConsoleTxt));
 
 		// 本地文件树
 		String filePath = localSystemPath;
@@ -348,8 +344,10 @@ public class ClientFrame {
 
 				// System.out.println(temp_localPath+" "+temp_serverPath);
 				// 是否上传弹窗，是则开始上传否则取消
+
 				if (JOptionPane.showConfirmDialog(null, "是否上传:\n" + temp_localPath + "\n至服务器路径：\n" + temp_serverPath,
 						"上传文件", JOptionPane.YES_NO_OPTION) == 0) {
+
 //					System.out.println("Yes");
 //					try {
 ////						ftpUtil.upload(temp_localPath, temp_serverPath);
@@ -362,26 +360,26 @@ public class ClientFrame {
 					((DefaultMutableTreeNode) tp.getLastPathComponent()).add(newNode);
 					serverFileTree.updateUI();
 
-					Date date = new Date();
-					String preText = fileConsoleTxt.getText();
-					fileConsoleTxt.setText(preText + "文件传输成功！\n操作时间：" + date.toString() + "\n本地文件路径：" + temp_localPath
-							+ "\n服务器文件路径：" + temp_serverPath + "\n\n");
-					fileConsoleTxt.updateUI();
+//					Date date = new Date();
+//					String preText = fileConsoleTxt.getText();
+//					fileConsoleTxt.setText(preText + "文件传输成功！\n操作时间：" + date.toString() + "\n本地文件路径：" + temp_localPath
+//							+ "\n服务器文件路径：" + temp_serverPath + "\n\n");
+//					fileConsoleTxt.updateUI();
 				} else {
 					// 取消上传
-					Date date = new Date();
-					String preText = fileConsoleTxt.getText();
-					fileConsoleTxt.setText(preText + "文件传输失败！\n操作时间：" + date.toString() + "\n失败原因：用户取消传输。\n\n");
-					fileConsoleTxt.updateUI();
+//					Date date = new Date();
+//					String preText = fileConsoleTxt.getText();
+//					fileConsoleTxt.setText(preText + "文件传输失败！\n操作时间：" + date.toString() + "\n失败原因：用户取消传输。\n\n");
+//					fileConsoleTxt.updateUI();
 				}
 
 			} else {
 				JOptionPane.showConfirmDialog(null, " 请选择传输至服务器文件夹中！ ", " 上传文件", JOptionPane.CLOSED_OPTION,
 						JOptionPane.WARNING_MESSAGE);
-				Date date = new Date();
-				String preText = fileConsoleTxt.getText();
-				fileConsoleTxt.setText(preText + "文件传输失败！\n操作时间：" + date.toString() + "\n失败原因：选择了错误的服务器目的文件路径。\n\n");
-				fileConsoleTxt.updateUI();
+//				Date date = new Date();
+//				String preText = fileConsoleTxt.getText();
+//				fileConsoleTxt.setText(preText + "文件传输失败！\n操作时间：" + date.toString() + "\n失败原因：选择了错误的服务器目的文件路径。\n\n");
+//				fileConsoleTxt.updateUI();
 
 			}
 		}
@@ -426,17 +424,18 @@ public class ClientFrame {
 				JOptionPane.showConfirmDialog(null, " 请选择传输至本地文件夹中！ ", " 下载文件", JOptionPane.CLOSED_OPTION,
 						JOptionPane.WARNING_MESSAGE);
 				Date date = new Date();
-				String preText = fileConsoleTxt.getText();
-				fileConsoleTxt.setText(preText + "文件下载失败！\n操作时间：" + date.toString() + "\n失败原因：选择了错误的本地目的文件路径。\n\n");
-				fileConsoleTxt.updateUI();
+//				String preText = fileConsoleTxt.getText();
+//				fileConsoleTxt.setText(preText + "文件下载失败！\n操作时间：" + date.toString() + "\n失败原因：选择了错误的本地目的文件路径。\n\n");
+//				fileConsoleTxt.updateUI();
 			}
 			else {
 				if (JOptionPane.showConfirmDialog(null, "是否下载:\n" + temp_serverPath + "\n至本地路径：\n" + temp_localPath,
 						"下载文件", JOptionPane.YES_NO_OPTION) == 0) {
-					temp_localPath += "/" + temp_fileName;
+					//temp_localPath += "/" + temp_fileName;
+					temp_localPath = temp_localPath.replace("/", "\\");
 					try {
-						ftpUtil.download(temp_serverPath, temp_localPath);
-						consoleTxt.setText(ftpUtil.commuteInfo);
+						ftpUtil.downloadContinue(temp_serverPath, temp_localPath);;
+						//consoleTxt.setText(ftpUtil.commuteInfo);
 					} catch (IOException e) {
 						// TODO Auto-generated catch block
 						e.printStackTrace();
@@ -445,17 +444,17 @@ public class ClientFrame {
 					localFileTree.updateUI();
 
 					Date date = new Date();
-					String preText = fileConsoleTxt.getText();
-					fileConsoleTxt.setText(preText + "文件下载成功！\n操作时间：" + date.toString() + "\n本地文件路径：" + temp_localPath
-							+ "\n服务器文件路径：" + temp_serverPath + "\n\n");
-					fileConsoleTxt.updateUI();
+//					String preText = fileConsoleTxt.getText();
+//					fileConsoleTxt.setText(preText + "文件下载成功！\n操作时间：" + date.toString() + "\n本地文件路径：" + temp_localPath
+//							+ "\n服务器文件路径：" + temp_serverPath + "\n\n");
+//					fileConsoleTxt.updateUI();
 				}
 				else {
 					// 取消下载
 					Date date = new Date();
-					String preText = fileConsoleTxt.getText();
-					fileConsoleTxt.setText(preText + "文件下载失败！\n操作时间：" + date.toString() + "\n失败原因：用户取消下载。\n\n");
-					fileConsoleTxt.updateUI();
+//					String preText = fileConsoleTxt.getText();
+//					fileConsoleTxt.setText(preText + "文件下载失败！\n操作时间：" + date.toString() + "\n失败原因：用户取消下载。\n\n");
+//					fileConsoleTxt.updateUI();
 				
 				}
 			}
@@ -468,7 +467,7 @@ public class ClientFrame {
 //			DefaultMutableTreeNode root = new DefaultMutableTreeNode(new FileTreeNode(mask));
 		DefaultMutableTreeNode root = new DefaultMutableTreeNode(mask);
 		ArrayList<String> fileList = ftpUtil.list(mask);
-		consoleTxt.setText(ftpUtil.commuteInfo);
+		//consoleTxt.setText(ftpUtil.commuteInfo);
 		String fileName;
 		int fileSize;
 		char isD;

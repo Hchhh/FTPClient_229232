@@ -28,6 +28,7 @@ public class FTPUtil {
     private boolean debug;
     private RandomAccessFile localRAF; //本地文件
     private RandomAccessFile remoteRAF; //远端文件
+    public long bytesWritten;
 
     public FTPUtil() {
         remoteHost = "localhost";
@@ -288,14 +289,17 @@ public class FTPUtil {
      * @throws IOException
      */
     public long getFileSize(String filePath) throws IOException {
+    	long fileSize = -1;
     	if(!logined)
     		login();
-    	sendCommand("SIZE "+filePath); //根据工作目录改写
-    	response = readLine();
-    	if(response.startsWith("213"))
-    	{
-    		long fileSize = Long.parseLong(response.split(" ")[1]);
-        	return fileSize;
+    	while(fileSize == -1) {
+    		sendCommand("SIZE "+filePath); //根据工作目录改写
+        	response = readLine();
+        	if(response.startsWith("213"))
+        	{
+        		fileSize = Long.parseLong(response.split(" ")[1]);
+            	return fileSize;
+        	}
     	}
     	return -1;
     }
@@ -796,7 +800,7 @@ public class FTPUtil {
     	sendCommand("RETR " + remoteFilePath);
     	response = readLine();
     	int length = 0;
-    	long bytesWritten = 0;
+    	bytesWritten = 0;
     	do {
     		length = socketIn.read(buffer);
     		if(length != -1) {
@@ -815,6 +819,74 @@ public class FTPUtil {
     	socketIn.close();
     	return bytesWritten;
     }
-
+    
+    /**
+	 * 在本地和服务器都备份下载记录
+	 * @deprecated
+	 * @param filePath 要下载的文件在服务器的路径（包含文件名）
+	 * @param localDir 要在本地保存目录（不包含文件名）
+	 * @poolSize 线程数量
+	 */
+	public void createRecord(String filePath, String localDir, int poolSize) {
+		String slash = "/";
+		if(filePath.indexOf("/") == -1)
+			slash = "\\";
+		int index = filePath.lastIndexOf(slash);
+		int length = filePath.length();
+		String fileName = filePath.substring(index+1, length);
+		String localRecordPath = localDir + slash + fileName.replace(".", "") + ".record";
+		if(new File(localRecordPath).exists()) {return;} //本地有记录的话就不需要再备份了
+		try {
+			//先上传
+			long fileSize = getFileSize(filePath); //获取要下载的文件的大小
+			long partSize1 = (long) Math.ceil(fileSize/poolSize); //前n-1个线程的下载数据量
+			long partSize2 = fileSize - partSize1 * (poolSize - 1); //第n个线程的下载数据量
+			dataSocket = createDataSocket(); //新建一个datasocket
+			sendCommand("STOR " + filePath.replace(".", "") + ".record"); //发送命令
+			response = readLine();
+			BufferedOutputStream recordOut = new BufferedOutputStream(dataSocket.getOutputStream()); //到记录文件的输出流
+			String record;
+			//写入
+			int i = 0;
+			while(i < poolSize - 1) {
+				long startPos = i * partSize1;
+				long endPos = startPos + partSize1;
+				record = "part:" + i + ", startPos:" +  startPos + ", endPos:" + endPos + "\n";
+				recordOut.write(record.getBytes());
+				recordOut.flush();
+				i++;
+			}
+			
+			if(i == poolSize - 1) {
+				long startPos = i * partSize1;
+				long endPos = startPos + partSize2;
+				record = "part:" + i + ", startPos:" +  startPos + ", endPos:" + endPos + "\n";
+				recordOut.write(record.getBytes());
+				recordOut.flush();
+			}
+			//再下载
+			byte[] buffer = new byte[1024];
+			sendCommand("RETR " + filePath.replace(".", "") + ".record"); //发送命令
+			response = readLine();
+			BufferedInputStream recordIn = new BufferedInputStream(dataSocket.getInputStream()); //到本地记录的输出流
+			RandomAccessFile recordRAF = new RandomAccessFile(localDir + slash + fileName.replace(".", "") + ".record", "rw");
+			int dataLength;
+			//写入
+			do {
+				dataLength = recordIn.read(buffer);
+				if(dataLength != -1) {
+					recordRAF.write(buffer, 0, dataLength);
+				}
+			}while(dataLength != -1);
+			//下载完成释放资源
+			if(recordRAF.length() == fileSize) {
+				recordIn.close();
+				recordRAF.close();
+			}
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+	}
     
 }
