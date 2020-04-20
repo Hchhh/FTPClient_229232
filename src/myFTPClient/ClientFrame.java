@@ -9,12 +9,14 @@ import javax.swing.JPopupMenu;
 import javax.swing.JScrollPane;
 import javax.swing.JToolBar;
 import java.awt.BorderLayout;
+import java.awt.Color;
 import java.awt.Component;
 import java.awt.Container;
 import java.awt.Cursor;
 import java.awt.Dimension;
 
 import javax.swing.BoxLayout;
+import javax.swing.DefaultListModel;
 import javax.swing.JButton;
 import javax.swing.JFileChooser;
 
@@ -29,9 +31,14 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.awt.event.ActionEvent;
 import java.awt.FlowLayout;
+import java.awt.Font;
+
 import javax.swing.JSplitPane;
+import javax.swing.JTabbedPane;
 import javax.swing.JTextPane;
 import javax.swing.JTextField;
 import javax.swing.JTextArea;
@@ -52,6 +59,7 @@ import java.awt.dnd.DropTargetDropEvent;
 import java.awt.dnd.DropTargetListener;
 import java.awt.GridLayout;
 import javax.swing.JLabel;
+import javax.swing.JList;
 import javax.swing.JMenuItem;
 import javax.swing.JOptionPane;
 import javax.swing.JSpinner;
@@ -73,13 +81,20 @@ public class ClientFrame {
 	// 新建连接对象
 	private FTPUtil ftpUtil = new FTPUtil();
 
+	// 多线程下载对象
+	private int poolSize = 3; // 线程池大小
+	private MultiDownload md;
+
 	// 本地文件树，服务器文件树
 	JTree localFileTree;
 	JTree serverFileTree;
 
 	// 预存本地文件路径，windows修改第一项路径改为系统根目录
+
+	String localSystemPath = "F:\\shared";
+
 //	String localSystemPath = "/Users/hjq/Documents";
-	String localSystemPath;
+
 	String serverFilePath = "/var/ftp";
 
 	// 传输文件时获取到的本地文件路径以及服务器文件路径
@@ -90,10 +105,20 @@ public class ClientFrame {
 	// 控制台文本框
 	JTextArea consoleTxt;
 	JTextArea fileConsoleTxt;
-
 	boolean upload_OK = true;
 	boolean download_OK = true;
 
+	// 进度信息
+	private JTextField tf_localPath;
+	private JTextField tf_direction;
+	private JTextField tf_serverPath;
+	JLabel lbl_thread1;
+	JLabel lbl_thread2;
+	JLabel lbl_thread3;
+	JLabel lbl_all;
+	JButton btn_continue;
+	JList list;
+	private DefaultListModel dlm = new DefaultListModel();
 	/**
 	 * Launch the application.
 	 */
@@ -145,7 +170,6 @@ public class ClientFrame {
 		frame.setBounds(100, 100, 1280, 1150);
 		frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 		frame.getContentPane().setLayout(new BoxLayout(frame.getContentPane(), BoxLayout.Y_AXIS));
-
 		JToolBar toolBar = new JToolBar();
 //		toolBar.setAlignmentX(Component.LEFT_ALIGNMENT);
 		frame.getContentPane().add(toolBar);
@@ -206,11 +230,26 @@ public class ClientFrame {
 		// 控制台文本框 用于显示接收到的Socket返回值
 		consoleTxt = new JTextArea();
 		consoleTxt.setEditable(false);
-//		consoleTxt.setText("Console\n\n\n\n\n");
-		consoleTxt.setMaximumSize(new Dimension(1280, 400));
-		consoleTxt.setText(ftpUtil.commuteInfo);
-		frame.getContentPane().add(new JScrollPane(consoleTxt));
+		
+		fileConsoleTxt = new JTextArea();
+		fileConsoleTxt.setEditable(false);
+		// consoleTxt.setText(ftpUtil.commuteInfo);
 
+//		consoleTxt.setMaximumSize(new Dimension(1280, 300));
+		
+
+		JScrollPane sp = new JScrollPane(consoleTxt);
+		JScrollPane sp2 = new JScrollPane(fileConsoleTxt);
+		
+		JPanel consolePane = new JPanel(new GridLayout(0, 2, 0, 0));
+		consolePane.setPreferredSize(new Dimension(1280,400));
+		frame.getContentPane().add(consolePane);
+		consolePane.add(sp);
+		consolePane.add(sp2);
+//		sp.add(consoleTxt);
+		consoleTxt.setText(ftpUtil.commuteInfo);
+		consoleTxt.updateUI();
+		
 		JLabel lblNewLabel = new JLabel("文件传输");
 		frame.getContentPane().add(lblNewLabel);
 
@@ -230,15 +269,98 @@ public class ClientFrame {
 		filePane.add(serverPane);
 
 		serverPane.add(scrollPane, BorderLayout.CENTER);
+		// 传输界面
+		JPanel transimitPane = new JPanel();
+		frame.getContentPane().add(transimitPane);
+		transimitPane.setLayout(null);
 
-//		JTree serverFileTree = new JTree(getServerFiles(""));
+		JTabbedPane tabbedPane = new JTabbedPane(JTabbedPane.TOP);
+		tabbedPane.setBounds(10, 10, 1246, 193);
+		transimitPane.add(tabbedPane);
 
-		// 文件传输控制台文本框
-		fileConsoleTxt = new JTextArea();
-		fileConsoleTxt.setEditable(false);
-//		fileConsoleTxt.setText("File Console\n\n\n\n\n");
-		fileConsoleTxt.setMaximumSize(new Dimension(1280, 200));
-		frame.getContentPane().add(new JScrollPane(fileConsoleTxt));
+		JPanel panel_InProgress = new JPanel();
+		tabbedPane.addTab("正在传输", panel_InProgress);
+		panel_InProgress.setLayout(null);
+
+		JLabel label_4 = new JLabel("本地存放路径");
+		label_4.setFont(new Font("宋体", Font.PLAIN, 14));
+		label_4.setBounds(49, 10, 169, 15);
+		panel_InProgress.add(label_4);
+
+		JLabel label_5 = new JLabel("传输方向");
+		label_5.setFont(new Font("宋体", Font.PLAIN, 14));
+		label_5.setBounds(207, 10, 70, 15);
+		panel_InProgress.add(label_5);
+
+		JLabel label_6 = new JLabel("线程 1 进度");
+		label_6.setFont(new Font("宋体", Font.PLAIN, 14));
+		label_6.setBounds(345, 10, 79, 15);
+		panel_InProgress.add(label_6);
+
+		JLabel label_7 = new JLabel("线程 2 进度");
+		label_7.setFont(new Font("宋体", Font.PLAIN, 14));
+		label_7.setBounds(488, 10, 87, 15);
+		panel_InProgress.add(label_7);
+
+		JLabel label_8 = new JLabel("线程 3 进度");
+		label_8.setFont(new Font("宋体", Font.PLAIN, 14));
+		label_8.setBounds(645, 10, 87, 15);
+		panel_InProgress.add(label_8);
+
+		JLabel label_9 = new JLabel("总进度");
+		label_9.setFont(new Font("宋体", Font.PLAIN, 14));
+		label_9.setBounds(860, 10, 70, 15);
+		panel_InProgress.add(label_9);
+
+		JLabel label_10 = new JLabel("服务器存放路径");
+		label_10.setFont(new Font("宋体", Font.PLAIN, 14));
+		label_10.setBounds(1046, 10, 101, 15);
+		panel_InProgress.add(label_10);
+
+		tf_localPath = new JTextField();
+		tf_localPath.setEditable(false);
+		tf_localPath.setBounds(10, 47, 155, 21);
+		panel_InProgress.add(tf_localPath);
+		tf_localPath.setColumns(10);
+
+		tf_direction = new JTextField();
+		tf_direction.setEditable(false);
+		tf_direction.setColumns(10);
+		tf_direction.setBounds(202, 47, 66, 21);
+		panel_InProgress.add(tf_direction);
+
+		tf_serverPath = new JTextField();
+		tf_serverPath.setEditable(false);
+		tf_serverPath.setColumns(10);
+		tf_serverPath.setBounds(1015, 47, 161, 21);
+		panel_InProgress.add(tf_serverPath);
+
+		lbl_thread1 = new JLabel("");
+		lbl_thread1.setBounds(352, 50, 58, 15);
+		panel_InProgress.add(lbl_thread1);
+
+		lbl_thread2 = new JLabel("");
+		lbl_thread2.setBounds(498, 50, 58, 15);
+		panel_InProgress.add(lbl_thread2);
+
+		lbl_thread3 = new JLabel("");
+		lbl_thread3.setBounds(661, 50, 58, 15);
+		panel_InProgress.add(lbl_thread3);
+
+		lbl_all = new JLabel("");
+		lbl_all.setBounds(853, 50, 80, 15);
+		panel_InProgress.add(lbl_all);
+
+		JPanel panel_Compeleted = new JPanel();
+		tabbedPane.addTab("传输完成", panel_Compeleted);
+		panel_Compeleted.setLayout(null);
+
+		JScrollPane scrollPane_1 = new JScrollPane();
+		scrollPane_1.setBounds(10, 10, 1221, 154);
+		panel_Compeleted.add(scrollPane_1);
+
+		list = new JList();
+		scrollPane_1.setViewportView(list);
 
 		// 本地文件树
 		String filePath = localSystemPath;
@@ -264,7 +386,7 @@ public class ClientFrame {
 						// 选择的是目录
 						if (serverFileisDirectory(rightNode, temp_fileName)) {
 							JPopupMenu dicMenu = directoryDeleteandRename(rightNode, temp_fileName);
-							dicMenu.show(e.getComponent(),e.getX(),e.getY());
+							dicMenu.show(e.getComponent(), e.getX(), e.getY());
 						}
 						// 选择的是文件
 						else {
@@ -385,37 +507,63 @@ public class ClientFrame {
 
 				// System.out.println(temp_localPath+" "+temp_serverPath);
 				// 是否上传弹窗，是则开始上传否则取消
+
 				if (JOptionPane.showConfirmDialog(null, "是否上传:\n" + temp_localPath + "\n至服务器路径：\n" + temp_serverPath,
 						"上传文件", JOptionPane.YES_NO_OPTION) == 0) {
-//					System.out.println("Yes");
-					try {
-						ftpUtil.uploadContinue(temp_localPath, temp_serverPath);
-						consoleTxt.setText(ftpUtil.commuteInfo);
-						//更新UI显示temp文件
-						localFileTree.updateUI();
-						serverFileTree.updateUI();
-					} catch (IOException e) {
-						// TODO Auto-generated catch block
-						e.printStackTrace();
-					}
+					upload(); // 包装上传方法
+					consoleTxt.setText(ftpUtil.commuteInfo);
+					consoleTxt.updateUI();
 
 					((DefaultMutableTreeNode) tp.getLastPathComponent()).add(newNode);
 					serverFileTree.updateUI();
-
-					fileLog("文件传输成功！","本地文件路径：" + temp_localPath + "\n服务器文件路径：" + temp_serverPath);
 				} else {
 					// 取消上传
-					fileLog("文件传输失败！","失败原因：用户取消传输。");
+					fileLog("文件传输失败！", "失败原因：用户取消传输。");
 				}
 
 			} else {
 				JOptionPane.showConfirmDialog(null, " 请选择传输至服务器文件夹中！ ", " 上传文件", JOptionPane.CLOSED_OPTION,
 						JOptionPane.WARNING_MESSAGE);
-				fileLog("文件传输失败！","失败原因：选择了错误的服务器目的文件路径。");
+				fileLog("文件传输失败！", "失败原因：选择了错误的服务器目的文件路径。");
 
 			}
 		}
 
+		/**
+		 * 
+		 * 上传并绘制传输界面，注意修改slash
+		 */
+		@SuppressWarnings("unchecked")
+		public synchronized void upload() {
+			// 开始上传
+			try {
+				String slash = "/";
+				temp_localPath = temp_localPath.replace("/", slash);
+				tf_localPath.setText(temp_localPath);
+				tf_direction.setText("上传");
+				tf_serverPath.setText(temp_serverPath);
+				lbl_thread1.setForeground(Color.BLUE);
+				lbl_thread1.setText("上传中...");
+				lbl_thread2.setText("");
+				lbl_thread3.setText("");
+				lbl_all.setForeground(Color.BLUE);
+				lbl_all.setText("上传中...");
+				ftpUtil.uploadContinue(temp_localPath, temp_serverPath);
+				lbl_thread1.setForeground(Color.GREEN);
+				lbl_thread1.setText("上传完成");
+				lbl_all.setForeground(Color.green);
+				lbl_all.setText("上传完成");
+				Date date = new Date();
+				dlm.addElement("本地文件路径：" + temp_localPath + "------------传输方向：上传" + "------------文件大小："
+						+ new File(temp_localPath).length() + "字节" + "------------服务器文件路径：" + temp_serverPath + "/"
+						+ temp_fileName + "------------完成时间：" + date);
+				list.setModel(dlm);
+
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		}
 	}
 
 	// 上传文件拖动至服务器面板相应内部类
@@ -429,7 +577,7 @@ public class ClientFrame {
 			String s = null;
 			try {
 				s = (String) transferable.getTransferData(DataFlavor.stringFlavor);
-//				System.out.println("s :    "+s);
+//					System.out.println("s :    "+s);
 			} catch (UnsupportedFlavorException e) {
 				e.printStackTrace();
 			} catch (IOException e) {
@@ -438,7 +586,7 @@ public class ClientFrame {
 			}
 			DefaultMutableTreeNode newNode = new DefaultMutableTreeNode(s);
 			TreePath tp = localFileTree.getPathForLocation(dtde.getLocation().x, dtde.getLocation().y);
-//			System.out.println(serverFileTree.getPathForLocation(dtde.getLocation().x,dtde.getLocation().y).getLastPathComponent());
+//				System.out.println(serverFileTree.getPathForLocation(dtde.getLocation().x,dtde.getLocation().y).getLastPathComponent());
 			DefaultMutableTreeNode localPathNode = (DefaultMutableTreeNode) localFileTree
 					.getPathForLocation(dtde.getLocation().x, dtde.getLocation().y).getLastPathComponent();
 			// 选中文件名
@@ -455,31 +603,88 @@ public class ClientFrame {
 			if (!new File(temp_path).isDirectory()) {
 				JOptionPane.showConfirmDialog(null, " 请选择传输至本地文件夹中！ ", " 下载文件", JOptionPane.CLOSED_OPTION,
 						JOptionPane.WARNING_MESSAGE);
-				fileLog("文件下载失败！","失败原因：选择了错误的本地目的文件路径");
+				fileLog("文件下载失败！", "失败原因：选择了错误的本地目的文件路径");
 			} else {
 				if (JOptionPane.showConfirmDialog(null, "是否下载:\n" + temp_serverPath + "\n至本地路径：\n" + temp_localPath,
 						"下载文件", JOptionPane.YES_NO_OPTION) == 0) {
-//					temp_localPath += "/" + temp_fileName;
-					try {
-						ftpUtil.downloadContinue(temp_serverPath, temp_localPath);
-						//更新UI显示temp文件
-						localFileTree.updateUI();
-						serverFileTree.updateUI();
-						
-						consoleTxt.setText(ftpUtil.commuteInfo);
-					} catch (IOException e) {
-						// TODO Auto-generated catch block
-						e.printStackTrace();
-					}
+//						temp_localPath += "/" + temp_fileName;
+					download();
+					consoleTxt.setText(ftpUtil.commuteInfo);
+					consoleTxt.updateUI();
 					((DefaultMutableTreeNode) tp.getLastPathComponent()).add(newNode);
 					localFileTree.updateUI();
 
-					fileLog("文件下载成功！","本地文件路径：" + temp_localPath + "\n服务器文件路径：" + temp_serverPath );
+					fileLog("文件下载成功！", "本地文件路径：" + temp_localPath + "\n服务器文件路径：" + temp_serverPath);
 				} else {
 					// 取消下载
-					fileLog("文件下载失败！","失败原因：用户取消下载。");
+					fileLog("文件下载失败！", "失败原因：用户取消下载。");
 				}
 			}
+		}
+
+		/**
+		 * 下载文件并绘制传输界面，注意修改slash
+		 */
+		@SuppressWarnings("unchecked")
+		public synchronized void download() {
+			String slash = "/";
+			if (new File(temp_localPath + slash + temp_fileName).exists()) {
+				JOptionPane.showConfirmDialog(null, "该文件已存在");
+				return;
+			}
+			temp_localPath = temp_localPath.replace("/", slash);
+			tf_localPath.setText(temp_localPath + slash + temp_fileName);
+			tf_direction.setText("下载");
+			tf_serverPath.setText(temp_serverPath + slash + temp_fileName);
+			lbl_thread1.setForeground(Color.BLUE);
+			lbl_thread1.setText("下载中...");
+			lbl_thread2.setForeground(Color.BLUE);
+			lbl_thread2.setText("下载中...");
+			lbl_thread3.setForeground(Color.BLUE);
+			lbl_thread3.setText("下载中...");
+			lbl_all.setForeground(Color.BLUE);
+			lbl_all.setText("多线程下载中...");
+			// 开一个线程启动多线程下载
+			md = new MultiDownload(poolSize, temp_serverPath, temp_localPath, temp_fileName);
+			Thread downloadTask = new Thread(() -> {
+				md.safeDownload();
+			});
+			// 另开一个线程统计动态下载信息并进行显示
+			Thread displayTask = new Thread(() -> {
+				double[] progress;
+				while (true) {
+					progress = md.getProgress();
+					if (progress[0] == 100) {
+						lbl_thread1.setForeground(Color.GREEN);
+						lbl_thread1.setText("下载完成");
+					}
+					if (progress[1] == 100) {
+						lbl_thread2.setForeground(Color.GREEN);
+						lbl_thread2.setText("下载完成");
+					}
+					if (progress[2] == 100) {
+						lbl_thread3.setForeground(Color.GREEN);
+						lbl_thread3.setText("下载完成");
+					}
+					if (progress[3] == 100) {
+						lbl_all.setForeground(Color.GREEN);
+						lbl_all.setText("合并完成");
+						Date date = new Date();
+						dlm.addElement("本地文件路径：" + temp_localPath + slash + temp_fileName + "------------传输方向：下载"
+								+ "------------文件大小："
+								+ (new File(temp_localPath + slash + temp_fileName).length() + "字节")
+								+ "------------服务器文件路径：" + temp_serverPath + "------------完成时间：" + date);
+						list.setModel(dlm);
+						break;
+					}
+
+				}
+			});
+
+			ExecutorService executorService = Executors.newFixedThreadPool(2);
+			executorService.submit(downloadTask);
+			executorService.submit(displayTask);
+			executorService.shutdown();
 		}
 
 	}
@@ -490,7 +695,7 @@ public class ClientFrame {
 		DefaultMutableTreeNode root = new DefaultMutableTreeNode(mask);
 		ArrayList<String> fileList = ftpUtil.list(mask);
 		consoleTxt.setText(ftpUtil.commuteInfo);
-		String fileName="";
+		String fileName = "";
 		int fileSize;
 		char isD;
 		for (int i = 0; i < fileList.size(); i++) {
@@ -522,7 +727,7 @@ public class ClientFrame {
 				}
 			}
 //				System.out.println(i + ":   "+ fileList.get(i)+ "   ** "+ eachInfo[0].charAt(0) + "  size: "+ eachInfo[3]+ "   name:  "+ eachInfo[8]);
-			fileName ="";
+			fileName = "";
 		}
 		return root;
 	}
@@ -561,32 +766,31 @@ public class ClientFrame {
 		return root;
 	}
 
-	//服务器文件夹新建 删除 操作
+	// 服务器文件夹新建 删除 操作
 	private JPopupMenu directoryDeleteandRename(DefaultMutableTreeNode node, String fileName) {
 		JPopupMenu menu = new JPopupMenu();
 		JMenuItem newItem = new JMenuItem("新建文件夹");
 		JMenuItem deleteItem = new JMenuItem("删除文件夹");
 		menu.add(deleteItem);
 		menu.add(newItem);
-		
+
 		newItem.addActionListener(new ActionListener() {
 			@Override
 			public void actionPerformed(ActionEvent e) {
 				// TODO Auto-generated method stub
 				String fullPath = fileName;
-				
-				String newFolderName=JOptionPane.showInputDialog("新建文件夹：");
-				
-				if(JOptionPane.showConfirmDialog(null,
-							"是否在服务器文件夹：" + fullPath + " 下\n新建文件夹：" +newFolderName, "新建文件夹",
-							JOptionPane.YES_NO_OPTION) == 0) {
-					fullPath += "/"+newFolderName;
+
+				String newFolderName = JOptionPane.showInputDialog("新建文件夹：");
+
+				if (JOptionPane.showConfirmDialog(null, "是否在服务器文件夹：" + fullPath + " 下\n新建文件夹：" + newFolderName, "新建文件夹",
+						JOptionPane.YES_NO_OPTION) == 0) {
+					fullPath += "/" + newFolderName;
 					try {
-						//新建成功
-						if(ftpUtil.mkdir(fullPath)) {
+						// 新建成功
+						if (ftpUtil.mkdir(fullPath)) {
 							node.add(new DefaultMutableTreeNode(fullPath));
 							serverFileTree.updateUI();
-							fileLog("新建文件夹成功","新建文件夹路径："+fullPath);
+							fileLog("新建文件夹成功", "新建文件夹路径：" + fullPath);
 						}
 					} catch (IOException e1) {
 						// TODO Auto-generated catch block
@@ -594,49 +798,47 @@ public class ClientFrame {
 					}
 				}
 			}
-			
+
 		});
-		
+
 		deleteItem.addActionListener(new ActionListener() {
 
 			@Override
 			public void actionPerformed(ActionEvent e) {
 				// TODO Auto-generated method stub
 				String fullPath = fileName;
-				if(fullPath.equals("/var/ftp")) {
+				if (fullPath.equals("/var/ftp")) {
 					JOptionPane.showConfirmDialog(null, " 不能对服务器根目录进行删除操作！ ", " 删除文件夹", JOptionPane.CLOSED_OPTION,
 							JOptionPane.WARNING_MESSAGE);
-				}else {
-					if(JOptionPane.showConfirmDialog(null,
-							"是否在服务器删除文件夹：" + fullPath + "\n（此操作不可逆！）" , "删除文件夹",
+				} else {
+					if (JOptionPane.showConfirmDialog(null, "是否在服务器删除文件夹：" + fullPath + "\n（此操作不可逆！）", "删除文件夹",
 							JOptionPane.YES_NO_OPTION) == 0) {
 						try {
-							if(ftpUtil.rmdir(fullPath)) {
+							if (ftpUtil.rmdir(fullPath)) {
 								((DefaultMutableTreeNode) node.getParent()).remove(node);
 								serverFileTree.updateUI();
-								fileLog("文件夹删除成功！","服务器原文件夹路径："+ fullPath);
+								fileLog("文件夹删除成功！", "服务器原文件夹路径：" + fullPath);
 							}
 							// 删除失败
 							else {
-								fileLog("文件夹删除失败！","服务器原文件夹路径：" +fullPath +  "\n请在上方控制台查看失败信息！");
-								
+								fileLog("文件夹删除失败！", "服务器原文件夹路径：" + fullPath + "\n请在上方控制台查看失败信息！");
+
 							}
 						} catch (IOException e1) {
 							// TODO Auto-generated catch block
 							e1.printStackTrace();
 						}
-						
-					}else {
-						fileLog("文件夹删除失败","失败原因：用户取消了删除操作。");
+
+					} else {
+						fileLog("文件夹删除失败", "失败原因：用户取消了删除操作。");
 					}
 				}
 			}
-			
+
 		});
-		
 		return menu;
 	}
-	
+
 	// 文件右键弹出窗体
 	private JPopupMenu fileDeleteandRename(DefaultMutableTreeNode node, String fileName) {
 		JPopupMenu menu = new JPopupMenu();
@@ -653,23 +855,21 @@ public class ClientFrame {
 				String fullPath = (String) ((DefaultMutableTreeNode) node.getParent()).getUserObject() + "/" + fileName;
 //				System.out.println(fullPath);
 				try {
-					if (JOptionPane.showConfirmDialog(null,
-							"是否在服务器删除文件:\n" + fullPath + "\n（此操作不可逆！）" , "删除文件",
+					if (JOptionPane.showConfirmDialog(null, "是否在服务器删除文件:\n" + fullPath + "\n（此操作不可逆！）", "删除文件",
 							JOptionPane.YES_NO_OPTION) == 0) {
 						// 删除成功:删除树节点
 						if (ftpUtil.deleteFile(fullPath) == true) {
 							((DefaultMutableTreeNode) node.getParent()).remove(node);
 							serverFileTree.updateUI();
-							fileLog("文件删除成功！","服务器原文件路径：" +fullPath );
+							fileLog("文件删除成功！", "服务器原文件路径：" + fullPath);
 						}
 						// 删除失败
 						else {
-							fileLog("文件删除失败！","服务器原文件路径：" +fullPath +  "\n请在上方控制台查看失败信息！");
-							
+							fileLog("文件删除失败！", "服务器原文件路径：" + fullPath + "\n请在上方控制台查看失败信息！");
+
 						}
-					}
-					else {
-						fileLog("文件删除失败","失败原因：用户取消了删除操作。");
+					} else {
+						fileLog("文件删除失败", "失败原因：用户取消了删除操作。");
 					}
 				} catch (IOException e1) {
 					// TODO Auto-generated catch block
@@ -735,13 +935,12 @@ public class ClientFrame {
 		}
 
 	}
-	
-	//文件控制台写入操作
-	private void fileLog(String title,String content) {
+
+	// 文件控制台写入操作
+	private void fileLog(String title, String content) {
 		Date date = new Date();
 		String preText = fileConsoleTxt.getText();
 		fileConsoleTxt.setText(preText + title + "\n操作时间："+ date.toString() +"\n" + content + "\n\n");
-		consoleTxt.updateUI();
 		fileConsoleTxt.updateUI();
 	}
 }
