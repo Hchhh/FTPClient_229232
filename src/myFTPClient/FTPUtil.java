@@ -35,42 +35,66 @@ public class FTPUtil {
 		debug = false;
 	}
 
-	// 设置服务器域名（IP地址）
+	/**
+	 * 设置服务器域名（IP地址）
+	 * @param remoteHost
+	 */
 	public void setRemoteHost(String remoteHost) {
 		this.remoteHost = remoteHost;
 	}
 
-	// 返回服务器域名（IP地址）
+	/**
+	 * 返回服务器域名（IP地址）
+	 * @return
+	 */
 	public String getRemoteHost() {
 		return remoteHost;
 	}
 
-	// 设置端口
+	/**
+	 * 设置端口
+	 * @param remotePort
+	 */
 	public void setRemotePort(int remotePort) {
 		this.remotePort = remotePort;
 	}
 
-	// 返回端口
+	/**
+	 * 返回端口
+	 * @return
+	 */
 	public int getRemotePort() {
 		return remotePort;
 	}
 
-	// The remote directory path
+	/**
+	 * The remote directory path
+	 * @param remotePath
+	 */
 	public void setRemotePath(String remotePath) {
 		this.remotePath = remotePath;
 	}
 
-	/// The current remote directory path.
+	/**
+	 * The current remote directory path.
+	 * @return
+	 */
 	public String getRemotePath() {
 		return remotePath;
 	}
 
-	// 用户名
+	/**
+	 * 用户名
+	 * @param user
+	 */
 	public void setUser(String user) {
 		this.user = user;
 	}
 
-	// 密码
+	/**
+	 * 密码
+	 * @param password
+	 */
 	public void setPW(String password) {
 		this.passWord = password;
 	}
@@ -80,7 +104,7 @@ public class FTPUtil {
 	}
 
 	/**
-	 * 与远程主机:端口建立连接，等价于telnet host:port
+	 * 与远程主机:端口建立连接
 	 * 
 	 * @return 控制连接socket
 	 */
@@ -90,7 +114,6 @@ public class FTPUtil {
 
 				connectSocket = new Socket(remoteHost, remotePort);
 				inData = new BufferedReader(new InputStreamReader(connectSocket.getInputStream()));// 输入信息(字符输入流)
-
 				outData = new BufferedWriter(new OutputStreamWriter(connectSocket.getOutputStream()));// 输出信息(字符输出流)
 			}
 			response = readLine();
