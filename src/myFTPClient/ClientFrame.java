@@ -391,6 +391,9 @@ public class ClientFrame {
 					try {
 						ftpUtil.uploadContinue(temp_localPath, temp_serverPath);
 						consoleTxt.setText(ftpUtil.commuteInfo);
+						//更新UI显示temp文件
+						localFileTree.updateUI();
+						serverFileTree.updateUI();
 					} catch (IOException e) {
 						// TODO Auto-generated catch block
 						e.printStackTrace();
@@ -459,6 +462,10 @@ public class ClientFrame {
 //					temp_localPath += "/" + temp_fileName;
 					try {
 						ftpUtil.downloadContinue(temp_serverPath, temp_localPath);
+						//更新UI显示temp文件
+						localFileTree.updateUI();
+						serverFileTree.updateUI();
+						
 						consoleTxt.setText(ftpUtil.commuteInfo);
 					} catch (IOException e) {
 						// TODO Auto-generated catch block
