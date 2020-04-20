@@ -335,6 +335,16 @@ public class FTPUtil {
     }
 
     /**
+     * 对远端文件进行重命名
+     * @param from 该文件的路径（包含原始文件名）
+     * @param to 该文件的路径（包含修改后的文件名）
+     */
+    public void renameTo(String from, String to) {
+    	sendCommand("RNFR " + from);
+    	sendCommand("RNTO " + to);
+    }
+    
+    /**
      * 删除远程服务器上的某个文件
      * @param FilePath 远端文件路径（相对于工作目录）
      * @return true-删除成功 false-删除失败
@@ -378,6 +388,7 @@ public class FTPUtil {
         		hasTemp = true;
         }
        //创建数据socket及其IO流
+        dataSocket.close();
     	dataSocket = createDataSocket();
     	BufferedInputStream socketIn = new BufferedInputStream(dataSocket.getInputStream());
     	BufferedOutputStream socketOut = new BufferedOutputStream(dataSocket.getOutputStream()); 	
@@ -403,7 +414,8 @@ public class FTPUtil {
             	//传输完成，重命名
             	sendCommand("RNFR " + remoteFilePath);
             	sendCommand("RNTO " + remoteFileDir + "/" + localFileName);
-             	socketOut.close();
+             	socketOut.close
+             	();
                 socketIn.close();
                 dataSocket.close();//关闭此数据连接
                 response = readLine();
@@ -684,9 +696,8 @@ public class FTPUtil {
     private Socket createDataSocket() throws IOException {
 
         sendCommand("PASV ");               //采用Pasv模式（被动模式），由服务器返回数据传输的临时端口号，使用该端口进行数据传输
-        response = readLine();
-        if (!response.startsWith("227")) {      //FTP命令传输过程发生异常
-            System.out.println(response);
+        while (!response.startsWith("227")) {      
+        	 response = readLine();
         }
         String clientIp = "";
         int port = -1;
