@@ -500,10 +500,8 @@ public class ClientFrame {
 
 				if (JOptionPane.showConfirmDialog(null, "是否上传:\n" + temp_localPath + "\n至服务器路径：\n" + temp_serverPath,
 						"上传文件", JOptionPane.YES_NO_OPTION) == 0) {
-
-//					System.out.println("Yes");
-						upload(); //包装上传方法
-						consoleTxt.setText(ftpUtil.commuteInfo);
+					upload(); //包装上传方法
+					consoleTxt.setText(ftpUtil.commuteInfo);
 
 					((DefaultMutableTreeNode) tp.getLastPathComponent()).add(newNode);
 					serverFileTree.updateUI();
@@ -527,31 +525,31 @@ public class ClientFrame {
 		 */
 		@SuppressWarnings("unchecked")
 		public synchronized void upload() {
-				String slash = "\\";
-				temp_localPath = temp_localPath.replace("/", slash);
-				tf_localPath.setText(temp_localPath + slash + temp_fileName);
-				tf_direction.setText("上传");
-				tf_serverPath.setText(temp_serverPath + slash + temp_fileName);
-				lbl_thread1.setForeground(Color.BLUE);
-				lbl_thread1.setText("上传中...");
-				lbl_thread2.setText("");
-				lbl_thread3.setText("");
-				lbl_all.setForeground(Color.BLUE);
-				lbl_all.setText("上传中...");
 				//开始上传
 				try {
+					String slash = "\\";
+					temp_localPath = temp_localPath.replace("/", slash);
+					tf_localPath.setText(temp_localPath);
+					tf_direction.setText("上传");
+					tf_serverPath.setText(temp_serverPath);
+					lbl_thread1.setForeground(Color.BLUE);
+					lbl_thread1.setText("上传中...");
+					lbl_thread2.setText("");
+					lbl_thread3.setText("");
+					lbl_all.setForeground(Color.BLUE);
+					lbl_all.setText("上传中...");
 					ftpUtil.uploadContinue(temp_localPath, temp_serverPath);
-						lbl_thread1.setForeground(Color.GREEN);
-						lbl_thread1.setText("上传完成");
-						lbl_all.setForeground(Color.green);
-						lbl_all.setText("上传完成");
-						Date date = new Date();
-						dlm.addElement("本地文件路径："+temp_localPath
+					lbl_thread1.setForeground(Color.GREEN);
+					lbl_thread1.setText("上传完成");
+					lbl_all.setForeground(Color.green);
+					lbl_all.setText("上传完成");
+					Date date = new Date();
+					dlm.addElement("本地文件路径："+temp_localPath
 								+"------------传输方向：上传"
 								+"------------文件大小：" + new File(temp_localPath).length() + "字节"
 								+"------------服务器文件路径：" + temp_serverPath + "/" + temp_fileName
 								+"------------完成时间："+date);
-						list.setModel(dlm);
+					list.setModel(dlm);
 					
 				} catch (IOException e) {
 					// TODO Auto-generated catch block
